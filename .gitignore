@@ -1,8 +1,10 @@
 # 忽略所有文件
 *
 
-# 只保留这些
+# 允许遍历目录和保留关键文件
+!*/
 !.gitignore
 !*.py
 !*.sh
 !*.md
+!requirements.txt
