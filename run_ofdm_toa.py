@@ -70,7 +70,7 @@ def _build_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--epsilon",
         type=float,
-        default=0.5,
+        default=0,
         help="SBL中的ε超参数, 控制稀疏程度",
     )
     parser.add_argument(
