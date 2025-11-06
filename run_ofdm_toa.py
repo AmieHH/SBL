@@ -9,7 +9,13 @@ from typing import Dict
 import matplotlib.pyplot as plt
 import numpy as np
 
-from sbl import SBLConfig, estimate_toas_for_dataset, filter_paths_by_gamma
+from sbl import (
+    SBLConfig,
+    SyntheticOFDMDataset,
+    estimate_toas_for_dataset,
+    filter_paths_by_gamma,
+    generate_synthetic_ofdm_dataset,
+)
 
 _TIME_UNITS: Dict[str, float] = {
     "s": 1.0,
@@ -25,7 +31,12 @@ def _build_argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="使用稀疏贝叶斯学习在OFDM频响数据上估计多径TOA"
     )
-    parser.add_argument("data_path", type=Path, help=".npy格式的频域最小二乘估计数据路径")
+    parser.add_argument(
+        "data_path",
+        type=Path,
+        nargs="?",
+        help=".npy格式的频域最小二乘估计数据路径",
+    )
     parser.add_argument(
         "--subcarrier-spacing",
         type=float,
@@ -67,6 +78,39 @@ def _build_argument_parser() -> argparse.ArgumentParser:
         type=int,
         default=50,
         help="SBL主循环的最大迭代次数",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        help="可选随机种子, 用于复现仿真数据",
+    )
+    parser.add_argument(
+        "--simulate",
+        action="store_true",
+        help="启用内置仿真, 无需加载真实数据",
+    )
+    parser.add_argument(
+        "--simulate-num-samples",
+        type=int,
+        default=4,
+        help="仿真样本数量(num维度)",
+    )
+    parser.add_argument(
+        "--simulate-max-paths",
+        type=int,
+        default=3,
+        help="单个样本的最大多径条数",
+    )
+    parser.add_argument(
+        "--simulate-snr-db",
+        type=float,
+        default=30.0,
+        help="仿真观测的信噪比, 单位dB",
+    )
+    parser.add_argument(
+        "--simulate-save-path",
+        type=Path,
+        help="若指定则把仿真数据保存为.npy文件",
     )
     parser.add_argument(
         "--save-path",
@@ -122,7 +166,26 @@ def main() -> None:
     parser = _build_argument_parser()
     args = parser.parse_args()
 
-    data = np.load(args.data_path)
+    synthetic: SyntheticOFDMDataset | None = None
+    if args.simulate:
+        synthetic = generate_synthetic_ofdm_dataset(
+            num_samples=args.simulate_num_samples,
+            num_symbols=1,
+            num_antennas=1,
+            num_subcarriers=480,
+            subcarrier_spacing_hz=args.subcarrier_spacing,
+            max_paths=args.simulate_max_paths,
+            snr_db=args.simulate_snr_db,
+            seed=args.seed,
+        )
+        data = synthetic.data
+        if args.simulate_save_path is not None:
+            np.save(args.simulate_save_path, data)
+    else:
+        if args.data_path is None:
+            raise SystemExit("未提供数据路径, 如需仿真请添加 --simulate 参数")
+        data = np.load(args.data_path)
+
     if data.ndim != 5:
         raise ValueError("数据维度应为(num, 1, symbol, att, freq)")
 
@@ -139,6 +202,12 @@ def main() -> None:
         results = filter_paths_by_gamma(results, args.gamma_threshold)
 
     _plot_toa(results, args.time_unit, args.save_path, args.show)
+
+    if synthetic is not None:
+        print("仿真真值TOA(秒):")
+        for idx, toas in enumerate(synthetic.true_toas):
+            formatted = ", ".join(f"{toa:.3e}" for toa in toas)
+            print(f"  样本{idx}: {formatted}")
 
 
 if __name__ == "__main__":

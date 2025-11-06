@@ -42,7 +42,7 @@ H[k]^* = \sum_{i=1}^{K} a_i^* e^{j2\pi (\Delta f \tau_i) k} + w[k]^*.
 
 完整的工程流程由`run_ofdm_toa.py`脚本驱动:
 
-1. **加载数据**: 通过`numpy.load`读取`.npy`文件, 并验证张量形状是否符合约定。
+1. **加载或仿真数据**: 若提供`.npy`文件, 由`numpy.load`读取; 若命令行添加`--simulate`, 则调用`generate_synthetic_ofdm_dataset`生成稀疏频响数据并可选保存, 形状同真实数据。
 2. **配置SBL**: 使用`SBLConfig`设置ε等超参数, 可在命令行中调整稀疏程度与迭代上限。
 3. **逐快照估计** (`estimate_toas_for_dataset`):
    - 对每个`num`索引取指定符号、天线的频率响应;
@@ -65,6 +65,8 @@ run_ofdm_toa.py
 
 ## 使用说明
 
+### 真实数据示例
+
 ```bash
 python run_ofdm_toa.py data.npy --subcarrier-spacing 120000 \
     --symbol-index 0 --antenna-index 0 --time-unit us --show
@@ -74,4 +76,14 @@ python run_ofdm_toa.py data.npy --subcarrier-spacing 120000 \
 - 若需要保存图像, 可添加`--save-path toa.png`。
 - SBL假设TOA满足\(\Delta f\,\tau < 1\), 即小于OFDM循环前缀所对应的最大无模糊延迟; 若超出该范围, 需对输入数据做预处理(例如延迟对齐或扩大频率采样范围)。
 
-通过以上流程, 便可在真实的OFDM导频数据上复现论文算法并获得清晰的TOA可视化结果。
+### 仿真数据示例
+
+```bash
+python run_ofdm_toa.py --simulate --subcarrier-spacing 120000 \
+    --simulate-num-samples 6 --time-unit us --show
+```
+
+- `--simulate-save-path synthetic.npy` 可以将生成数据保存下来, 供真实流程调试使用。
+- CLI中`--seed`将复现仿真路径, `--simulate-max-paths`与`--simulate-snr-db`分别控制路径数量上限与噪声强度。
+
+通过以上流程, 便可在真实或仿真的OFDM导频数据上复现论文算法并获得清晰的TOA可视化结果。
