@@ -30,7 +30,14 @@ for i in range(0, len(rows), 2):
 
 # 绘制散点
 plt.figure(figsize=(10, 6))
-sc = plt.scatter(x, y, c=c, s=25, cmap="jet")  # 颜色表示幅度
+
+# 计算幅度范围并打印（用于调试）
+c_array = np.array(c)
+vmin, vmax = c_array.min(), c_array.max()
+print(f"Amplitude range: [{vmin:.6f}, {vmax:.6f}]")
+
+# 设置颜色映射范围
+sc = plt.scatter(x, y, c=c, s=25, cmap="jet", vmin=vmin, vmax=vmax)
 plt.colorbar(sc, label="Amplitude")
 
 plt.xlabel("Sample Index")
