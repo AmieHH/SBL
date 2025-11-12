@@ -36,8 +36,8 @@ c_array = np.array(c)
 vmin, vmax = c_array.min(), c_array.max()
 print(f"Amplitude range: [{vmin:.6f}, {vmax:.6f}]")
 
-# 设置颜色映射范围
-sc = plt.scatter(x, y, c=c, s=25, cmap="jet", vmin=vmin, vmax=vmax)
+# 设置颜色映射范围（使用小点避免覆盖）
+sc = plt.scatter(x, y, c=c, s=3, cmap="jet", vmin=vmin, vmax=vmax, marker='.')
 plt.colorbar(sc, label="Amplitude")
 
 plt.xlabel("Sample Index")
