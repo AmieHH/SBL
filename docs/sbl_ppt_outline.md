@@ -1,25 +1,20 @@
-# SBL频域提取TOA汇报PPT要点
+# SBL频域提取TOA汇报PPT要点（1页）
 
-以下为1-2页PPT的核心内容，可直接复制到幻灯片中。
+以下内容可直接作为一页PPT，聚焦方法论与核心流程，避免实现细节。
 
-## 第1页：问题背景与模型假设
-- **任务**：从OFDM导频最小二乘频响估计多径到达时间(TOA)。
-- **观测模型**：频域响应\(H[k]=\sum_{i=1}^K a_i e^{-j2\pi f_k \tau_i}+w[k]\)，取共轭后与论文中的指数字典完全对应。\(f_k=k\,\Delta f\)。
-- **字典原子**：傅里叶原子\(\psi(\theta)[k]=e^{j2\pi\theta k}\)，其中\(\theta_i=\Delta f\,\tau_i\)。
-- **关键假设**：路径稀疏、噪声为复高斯，且\(\Delta f\,\tau_i<1\)以避免循环前缀模糊。
+## 核心思路
+- **目标**：由OFDM导频的频域响应直接稀疏重构多径TOA，适用于稀疏信道。
+- **频域模型**：\(H[k]=\sum_i a_i e^{-j2\pi f_k \tau_i}+w[k]\)，其中\(f_k=k\,\Delta f\)，噪声为复高斯。
+- **稀疏先验**：系数\(a_i\)服从零均值复高斯，方差\(\gamma_i\)可自适应学习；TOA以无网格/细网格角度参数\(\theta_i=\Delta f\,\tau_i\)表征。
 
-## 第2页：SBL核心流程与输出
-- **初始化**：
-  - 频率网格\(\theta\)覆盖\([0,1)\)或结合先验可缩窄；
-  - 设定先验方差\(\gamma\)为小正值、噪声精度\(\lambda\)为1，迭代上限与稀疏阈值由`SBLConfig`控制。
-- **迭代估计**(对应`sbl.sbl_algorithm.SparseBayesianLearning.fit`):
-  1. 计算后验协方差\(\Sigma=(\lambda\Psi^\mathrm{H}\Psi+\Gamma^{-1})^{-1}\)与均值\(\mu=\lambda\Sigma\Psi^\mathrm{H}y\)。
-  2. 依据后验功率\(|\mu_i|^2+\Sigma_{ii}\)更新每个路径的先验尺度\(\gamma_i\)。
-  3. 用残差能量更新噪声精度\(\lambda\)，若\(\gamma\)或\(\lambda\)收敛则停止。
-- **网格微调**：对激活原子执行牛顿步长修正\(\theta\leftarrow\theta-\frac{\partial\mathcal{L}/\partial\theta}{\partial^2\mathcal{L}/\partial\theta^2}\)，提升延迟估计精度。
-- **TOA恢复与筛选**：
-  - 将收敛的\(\theta\)除以\(\Delta f\)得到TOA；幅度取后验均值\(|\mu|\)。
-  - 可按\(\gamma\)或幅度阈值剔除弱路径，保留主要多径。
-- **可视化**：按快照编号绘制TOA散点，横轴为`num`，纵轴为连续时间坐标(如µs)，颜色可映射幅度大小，直观呈现多径随时间演化。
+## SBL估计主线
+1. **建立指数字典** \(\Psi\)：列向量为\(e^{j2\pi\theta k}\)，覆盖可行延迟区间；支持迭代中对活跃原子做牛顿式角度微调，突破固定网格限制。
+2. **贝叶斯迭代**（求解后验均值/协方差）：在\(\lambda\Psi^H\Psi+\Gamma^{-1}\)上做闭式更新，交替刷新\(\gamma_i\)与噪声精度\(\lambda\)，弱原子自然稀释。
+3. **路径判决与TOA恢复**：取后验功率显著的原子，延迟由\(\tau_i=\theta_i/\Delta f\)得到；幅度由后验均值\(\mu_i\)给出。
 
-> 参考实现：`run_ofdm_toa.py`负责数据入口与绘图，算法细节集中在`sbl/sbl_algorithm.py`与`sbl/ofdm_toa.py`。
+## 结果解读与可视化
+- **鲁棒性**：网格细调可缓解频偏/同步误差对峰值偏移的影响。
+- **输出**：获得每个快照的\(\{(\tau_i, |a_i|)\}\)集合，可按阈值筛弱径。
+- **呈现**：以快照编号为横轴、时间(µs/ns)为纵轴绘散点，颜色或大小映射幅度，直观展示多径随时间演化。
+
+> 参考实现：入口 `run_ofdm_toa.py`，核心算法位于 `sbl/sbl_algorithm.py` 与 `sbl/ofdm_toa.py`。
